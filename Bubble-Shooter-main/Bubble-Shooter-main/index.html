@@ -1,0 +1,3298 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta name="viewport"
+          content="width=device-width,
+                   initial-scale=1,
+                   maximum-scale=1,
+                   user-scalable=no">
+
+    <title>Bubble Shooter</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- MediaPipe -->
+    <script
+        src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"
+        crossorigin="anonymous">
+    </script>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"
+        crossorigin="anonymous">
+    </script>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"
+        crossorigin="anonymous">
+    </script>
+
+    <!-- Font -->
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap"
+        rel="stylesheet">
+
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+        }
+
+
+        html,
+        body {
+
+            margin: 0;
+
+            width: 100%;
+            height: 100%;
+
+            overflow: hidden;
+
+            background: #000;
+
+            color: #e3e3e3;
+
+            font-family: 'Roboto', sans-serif;
+
+            user-select: none;
+            -webkit-user-select: none;
+
+            touch-action: none;
+
+        }
+
+
+        /* ==============================
+           CAMERA BACKGROUND
+        ============================== */
+
+        #input_video {
+
+            position: fixed;
+
+            top: 0;
+            left: 0;
+
+            width: 100vw;
+            height: 100vh;
+
+            object-fit: cover;
+
+            transform: scaleX(-1);
+
+            filter:
+                blur(10px)
+                brightness(0.3);
+
+            opacity: 0.7;
+
+            z-index: 0;
+
+            pointer-events: none;
+
+        }
+
+
+        /* ==============================
+           GAME CANVAS
+        ============================== */
+
+        #gameCanvas {
+
+            position: absolute;
+
+            inset: 0;
+
+            display: block;
+
+            width: 100%;
+            height: 100%;
+
+            z-index: 10;
+
+            cursor: crosshair;
+
+            pointer-events: auto;
+
+        }
+
+
+        /* ==============================
+           CAMERA STATUS
+        ============================== */
+
+        #cameraStatus {
+
+            position: fixed;
+
+            top: 20px;
+            right: 20px;
+
+            z-index: 100;
+
+            padding:
+                9px 15px;
+
+            border-radius: 20px;
+
+            background:
+                rgba(0,0,0,0.55);
+
+            backdrop-filter:
+                blur(12px);
+
+            -webkit-backdrop-filter:
+                blur(12px);
+
+            font-size: 12px;
+
+            color: #aaa;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.1);
+
+            pointer-events: none;
+
+        }
+
+
+        #cameraStatus.active {
+
+            color: #00ffd4;
+
+        }
+
+
+        #cameraStatus.error {
+
+            color: #ff6b6b;
+
+        }
+
+
+        /* ==============================
+           COLOR PICKER
+        ============================== */
+
+        #colorPickerContainer {
+
+            position: fixed;
+
+            bottom: 24px;
+
+            left: 50%;
+
+            transform:
+                translateX(-50%);
+
+            z-index: 100;
+
+            width: 100%;
+
+            padding:
+                0 16px;
+
+            display: flex;
+
+            justify-content: center;
+
+            pointer-events: none;
+
+        }
+
+
+        #colorPicker {
+
+            background:
+                rgba(0,0,0,0.55);
+
+            backdrop-filter:
+                blur(20px);
+
+            -webkit-backdrop-filter:
+                blur(20px);
+
+            padding:
+                12px 16px;
+
+            border-radius: 35px;
+
+            border:
+                1px solid
+                rgba(255,255,255,0.15);
+
+            box-shadow:
+                0 10px 40px
+                rgba(0,0,0,0.5);
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            gap: 12px;
+
+            max-width: 100%;
+
+            overflow-x: auto;
+
+            pointer-events: auto;
+
+            touch-action: manipulation;
+
+        }
+
+
+        #colorPicker::-webkit-scrollbar {
+            display: none;
+        }
+
+
+        /* ==============================
+           COLOR BUTTON
+        ============================== */
+
+        .bubble-btn {
+
+            position: relative;
+
+            border: 2px solid
+                transparent;
+
+            outline: none;
+
+            flex-shrink: 0;
+
+            cursor: pointer;
+
+            pointer-events: auto;
+
+            touch-action: manipulation;
+
+            transition:
+                transform 0.18s ease,
+                box-shadow 0.18s ease,
+                opacity 0.18s ease,
+                border 0.18s ease;
+
+        }
+
+
+        .bubble-btn:hover {
+
+            transform:
+                scale(1.08);
+
+            opacity: 1;
+
+        }
+
+
+        .bubble-btn:active {
+
+            transform:
+                scale(0.9);
+
+        }
+
+
+        .bubble-btn.active {
+
+            transform:
+                scale(1.2);
+
+            border:
+                3px solid white;
+
+            box-shadow:
+                0 0 25px
+                rgba(255,255,255,0.65);
+
+            opacity: 1;
+
+        }
+
+
+        .bubble-btn::after {
+
+            content: "";
+
+            position: absolute;
+
+            inset: 0;
+
+            border-radius: 50%;
+
+            box-shadow:
+                inset 4px 4px 8px
+                rgba(255,255,255,0.35);
+
+            pointer-events: none;
+
+        }
+
+
+        /* ==============================
+           MOBILE
+        ============================== */
+
+        @media (max-width: 640px) {
+
+            #colorPicker {
+
+                padding:
+                    10px 14px;
+
+                gap: 10px;
+
+            }
+
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+
+    <!-- CAMERA -->
+
+    <video
+        id="input_video"
+        playsinline
+        autoplay
+        muted>
+    </video>
+
+
+    <!-- CAMERA STATUS -->
+
+    <div id="cameraStatus">
+        Starting camera...
+    </div>
+
+
+    <!-- GAME -->
+
+    <div
+        id="game-container"
+        class="relative w-full h-screen overflow-hidden">
+
+
+        <!-- CANVAS -->
+
+        <canvas
+            id="gameCanvas">
+        </canvas>
+
+
+        <!-- SCORE -->
+
+        <div
+            class="absolute
+                   top-4 left-4
+                   md:top-8 md:left-8
+                   pointer-events-none
+                   z-20">
+
+            <div
+                class="
+                bg-black/50
+                p-3 md:p-6
+                rounded-[24px]
+                md:rounded-[32px]
+                border border-white/10
+                shadow-2xl
+                flex items-center
+                gap-3 md:gap-5
+                min-w-[140px]
+                md:min-w-[220px]
+                hud-blur
+                ">
+
+
+                <div
+                    class="
+                    bg-white/5
+                    p-2 md:p-3
+                    rounded-xl
+                    border border-white/10
+                    hidden sm:block
+                    ">
+
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="#00ffd4"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round">
+
+                        <path
+                            d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/>
+
+                        <path
+                            d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/>
+
+                        <path
+                            d="M4 22h16"/>
+
+                        <path
+                            d="M10 14.66V17c0 .55-.47.98-.97 1.21
+                               C7.85 18.75 7 20.24 7 22"/>
+
+                        <path
+                            d="M14 14.66V17c0 .55.47.98.97 1.21
+                               C16.15 18.75 17 20.24 17 22"/>
+
+                        <path
+                            d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/>
+
+                    </svg>
+
+                </div>
+
+
+                <div>
+
+                    <p
+                        class="
+                        text-[8px]
+                        md:text-[10px]
+                        text-gray-400
+                        uppercase
+                        font-black
+                        tracking-[2px]
+                        md:tracking-[3px]
+                        ">
+
+                        Score
+
+                    </p>
+
+
+                    <p
+                        id="scoreDisplay"
+                        class="
+                        text-2xl
+                        md:text-4xl
+                        font-black
+                        text-white
+                        tracking-tighter
+                        ">
+
+                        0
+
+                    </p>
+
+                </div>
+
+            </div>
+
+        </div>
+
+
+        <!-- COLOR PICKER -->
+
+        <div
+            id="colorPickerContainer">
+
+            <div
+                id="colorPicker">
+            </div>
+
+        </div>
+
+
+    </div>
+
+
+<script>
+
+
+/* =========================================================
+   DOM
+========================================================= */
+
+const canvas =
+    document.getElementById(
+        "gameCanvas"
+    );
+
+const ctx =
+    canvas.getContext("2d");
+
+
+const scoreDisplay =
+    document.getElementById(
+        "scoreDisplay"
+    );
+
+
+const colorPicker =
+    document.getElementById(
+        "colorPicker"
+    );
+
+
+const videoElement =
+    document.getElementById(
+        "input_video"
+    );
+
+
+const cameraStatus =
+    document.getElementById(
+        "cameraStatus"
+    );
+
+
+
+/* =========================================================
+   GAME SETTINGS
+========================================================= */
+
+const FRICTION = 0.998;
+
+let BUBBLE_RADIUS = 24;
+
+let ROW_HEIGHT = 42;
+
+let GRID_COLS = 14;
+
+const GRID_ROWS = 10;
+
+let SLINGSHOT_BOTTOM_OFFSET = 180;
+
+let MAX_DRAG_DIST = 160;
+
+
+
+/* =========================================================
+   COLORS
+========================================================= */
+
+const COLOR_CONFIG = {
+
+    red: {
+        hex: "#ef5350",
+        points: 100
+    },
+
+    blue: {
+        hex: "#42a5f5",
+        points: 150
+    },
+
+    green: {
+        hex: "#66bb6a",
+        points: 200
+    },
+
+    yellow: {
+        hex: "#ffee58",
+        points: 250
+    },
+
+    purple: {
+        hex: "#ab47bc",
+        points: 300
+    },
+
+    orange: {
+        hex: "#ffa726",
+        points: 500
+    }
+
+};
+
+
+const COLOR_KEYS =
+    Object.keys(
+        COLOR_CONFIG
+    );
+
+
+
+/* =========================================================
+   GAME STATE
+========================================================= */
+
+let score = 0;
+
+let selectedColor = "red";
+
+let availableColors =
+    [...COLOR_KEYS];
+
+let bubbles = [];
+
+let particles = [];
+
+
+let ballPos = {
+    x: 0,
+    y: 0
+};
+
+
+let ballVel = {
+    x: 0,
+    y: 0
+};
+
+
+let anchorPos = {
+    x: 0,
+    y: 0
+};
+
+
+let isDragging = false;
+
+let isFlying = false;
+
+let flightStartTime = 0;
+
+
+
+/* =========================================================
+   HAND STATE
+========================================================= */
+
+let handPos = {
+    x: 0,
+    y: 0
+};
+
+/* Smoothed hand position (EMA filtered) */
+let smoothHandPos = {
+    x: 0,
+    y: 0
+};
+
+let handInitialized = false;
+
+/* Smoothing factor: 0 = no smoothing, 1 = no delay.
+   0.35 gives a nice balance of responsiveness vs stability */
+const HAND_SMOOTH_FACTOR = 0.35;
+
+/* Pinch hysteresis thresholds to prevent flicker */
+const PINCH_ENGAGE_DIST = 0.08;
+const PINCH_RELEASE_DIST = 0.13;
+
+let handActive = false;
+
+let isPinching = false;
+
+let lastPinchState = false;
+
+let lastHandResults = null;
+
+/* Track whether current drag originated from hand */
+let isHandDrag = false;
+
+/* Hover-based color selection tracking */
+let hoverColorName = null;
+let hoverStartTime = 0;
+const HOVER_DWELL_MS = 120;
+
+
+
+/* =========================================================
+   POINTER STATE
+========================================================= */
+
+let pointerActive = false;
+
+
+
+/* =========================================================
+   COLOR UTILITIES
+========================================================= */
+
+function adjustColor(
+    color,
+    amount
+) {
+
+    const hex =
+        color.replace("#", "");
+
+
+    const r =
+        Math.max(
+            0,
+            Math.min(
+                255,
+                parseInt(
+                    hex.substring(0, 2),
+                    16
+                ) + amount
+            )
+        );
+
+
+    const g =
+        Math.max(
+            0,
+            Math.min(
+                255,
+                parseInt(
+                    hex.substring(2, 4),
+                    16
+                ) + amount
+            )
+        );
+
+
+    const b =
+        Math.max(
+            0,
+            Math.min(
+                255,
+                parseInt(
+                    hex.substring(4, 6),
+                    16
+                ) + amount
+            )
+        );
+
+
+    const toHex =
+        value =>
+            value
+                .toString(16)
+                .padStart(2, "0");
+
+
+    return "#" +
+        toHex(r) +
+        toHex(g) +
+        toHex(b);
+
+}
+
+
+
+/* =========================================================
+   GRID POSITION
+========================================================= */
+
+function getBubblePos(
+    row,
+    col
+) {
+
+    const totalWidth =
+        GRID_COLS *
+        BUBBLE_RADIUS *
+        2;
+
+
+    const xOffset =
+        (
+            canvas.width -
+            totalWidth
+        ) / 2 +
+        BUBBLE_RADIUS;
+
+
+    const isOdd =
+        row % 2 !== 0;
+
+
+    const x =
+        xOffset +
+        col *
+        BUBBLE_RADIUS *
+        2 +
+        (
+            isOdd
+                ? BUBBLE_RADIUS
+                : 0
+        );
+
+
+    const y =
+        BUBBLE_RADIUS +
+        row *
+        ROW_HEIGHT +
+        20;
+
+
+    return {
+        x,
+        y
+    };
+
+}
+
+
+
+/* =========================================================
+   COLOR PICKER
+========================================================= */
+
+function renderPicker() {
+
+    colorPicker.innerHTML = "";
+
+
+    /*
+       IMPORTANT:
+       Always display ALL colors.
+    */
+
+    COLOR_KEYS.forEach(
+        color => {
+
+            const config =
+                COLOR_CONFIG[color];
+
+
+            const button =
+                document.createElement(
+                    "button"
+                );
+
+
+            const size =
+                window.innerWidth < 640
+                    ? 44
+                    : 64;
+
+
+            button.className =
+                "bubble-btn";
+
+
+            button.style.width =
+                `${size}px`;
+
+
+            button.style.height =
+                `${size}px`;
+
+
+            button.style.borderRadius =
+                "50%";
+
+
+            button.style.background =
+                `radial-gradient(
+                    circle at 30% 30%,
+                    ${config.hex},
+                    ${adjustColor(
+                        config.hex,
+                        -65
+                    )}
+                )`;
+
+
+            if (
+                selectedColor ===
+                color
+            ) {
+
+                button.classList.add(
+                    "active"
+                );
+
+            }
+
+
+            button.title =
+                `Select ${color}`;
+
+
+            /*
+               CLICK
+            */
+
+            button.addEventListener(
+                "click",
+                function(event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    selectedColor =
+                        color;
+
+                    renderPicker();
+
+                    console.log(
+                        "Selected color:",
+                        selectedColor
+                    );
+
+                }
+            );
+
+
+            /*
+               TOUCH
+            */
+
+            button.addEventListener(
+                "touchstart",
+                function(event) {
+
+                    event.preventDefault();
+
+                    event.stopPropagation();
+
+                    selectedColor =
+                        color;
+
+                    renderPicker();
+
+                    console.log(
+                        "Selected color:",
+                        selectedColor
+                    );
+
+                },
+                {
+                    passive: false
+                }
+            );
+
+
+            colorPicker.appendChild(
+                button
+            );
+
+        }
+    );
+
+}
+
+
+
+/* =========================================================
+   AVAILABLE COLORS
+========================================================= */
+
+function updateAvailableColors() {
+
+    /*
+       The picker ALWAYS has all colors.
+       We do NOT overwrite selectedColor.
+    */
+
+    availableColors =
+        [...COLOR_KEYS];
+
+    renderPicker();
+
+}
+
+
+
+/* =========================================================
+   INITIAL GRID
+========================================================= */
+
+function initGrid() {
+
+    bubbles = [];
+
+
+    for (
+        let row = 0;
+        row < 5;
+        row++
+    ) {
+
+        const cols =
+            row % 2 !== 0
+                ? GRID_COLS - 1
+                : GRID_COLS;
+
+
+        for (
+            let col = 0;
+            col < cols;
+            col++
+        ) {
+
+            const position =
+                getBubblePos(
+                    row,
+                    col
+                );
+
+
+            const randomColor =
+                COLOR_KEYS[
+                    Math.floor(
+                        Math.random() *
+                        COLOR_KEYS.length
+                    )
+                ];
+
+
+            bubbles.push({
+
+                id:
+                    `${row}-${col}`,
+
+                row,
+                col,
+
+                x: position.x,
+                y: position.y,
+
+                color:
+                    randomColor,
+
+                active: true
+
+            });
+
+        }
+
+    }
+
+
+    updateAvailableColors();
+
+}
+
+
+
+/* =========================================================
+   RESIZE
+========================================================= */
+
+function resize() {
+
+    canvas.width =
+        window.innerWidth;
+
+    canvas.height =
+        window.innerHeight;
+
+
+    const isMobile =
+        canvas.width < 768;
+
+
+    BUBBLE_RADIUS =
+        isMobile
+            ? Math.max(
+                16,
+                Math.floor(
+                    canvas.width / 16
+                )
+            )
+            : 24;
+
+
+    GRID_COLS =
+        Math.max(
+            6,
+            Math.floor(
+                canvas.width /
+                (
+                    BUBBLE_RADIUS *
+                    2.1
+                )
+            )
+        );
+
+
+    ROW_HEIGHT =
+        BUBBLE_RADIUS *
+        1.73;
+
+
+    SLINGSHOT_BOTTOM_OFFSET =
+        isMobile
+            ? 120
+            : 180;
+
+
+    MAX_DRAG_DIST =
+        isMobile
+            ? 110
+            : 160;
+
+
+    anchorPos = {
+
+        x:
+            canvas.width / 2,
+
+        y:
+            canvas.height -
+            SLINGSHOT_BOTTOM_OFFSET
+
+    };
+
+
+    if (
+        !isFlying &&
+        !isDragging
+    ) {
+
+        ballPos = {
+            ...anchorPos
+        };
+
+    }
+
+
+    initGrid();
+
+    renderPicker();
+
+}
+
+
+window.addEventListener(
+    "resize",
+    resize
+);
+
+
+resize();
+
+
+
+/* =========================================================
+   DRAW BUBBLE
+========================================================= */
+
+function drawBubble(
+    x,
+    y,
+    radius,
+    colorKey
+) {
+
+    const baseColor =
+        COLOR_CONFIG[
+            colorKey
+        ].hex;
+
+
+    const gradient =
+        ctx.createRadialGradient(
+
+            x -
+                radius *
+                0.3,
+
+            y -
+                radius *
+                0.3,
+
+            radius *
+                0.1,
+
+            x,
+            y,
+            radius
+
+        );
+
+
+    gradient.addColorStop(
+        0,
+        "#ffffff"
+    );
+
+
+    gradient.addColorStop(
+        0.2,
+        baseColor
+    );
+
+
+    gradient.addColorStop(
+        1,
+        adjustColor(
+            baseColor,
+            -70
+        )
+    );
+
+
+    ctx.beginPath();
+
+
+    ctx.arc(
+        x,
+        y,
+        radius,
+        0,
+        Math.PI * 2
+    );
+
+
+    ctx.fillStyle =
+        gradient;
+
+
+    ctx.fill();
+
+
+    ctx.strokeStyle =
+        adjustColor(
+            baseColor,
+            -90
+        );
+
+
+    ctx.lineWidth = 1;
+
+    ctx.stroke();
+
+}
+
+
+
+/* =========================================================
+   START DRAG
+========================================================= */
+
+function startDrag(
+    x,
+    y,
+    fromHand
+) {
+
+    if (isFlying) {
+        return;
+    }
+
+
+    const dx =
+        x -
+        ballPos.x;
+
+
+    const dy =
+        y -
+        ballPos.y;
+
+
+    const distance =
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
+
+
+    /* Larger grab radius for hand input (8x) vs mouse (5x) */
+    const grabRadius =
+        fromHand
+            ? BUBBLE_RADIUS * 8
+            : BUBBLE_RADIUS * 5;
+
+
+    if (
+        distance < grabRadius
+    ) {
+
+        isDragging = true;
+        isHandDrag = !!fromHand;
+
+        /* Don't snap ball to hand on grab, keep it smooth */
+        if (!fromHand) {
+            ballPos = {
+                x,
+                y
+            };
+        }
+
+    }
+
+}
+
+
+
+/* =========================================================
+   UPDATE DRAG
+========================================================= */
+
+function updateDrag(
+    x,
+    y
+) {
+
+    if (!isDragging) {
+        return;
+    }
+
+
+    const dx =
+        x -
+        anchorPos.x;
+
+
+    const dy =
+        y -
+        anchorPos.y;
+
+
+    const distance =
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
+
+
+    if (
+        distance >
+        MAX_DRAG_DIST
+    ) {
+
+        const angle =
+            Math.atan2(
+                dy,
+                dx
+            );
+
+
+        ballPos = {
+
+            x:
+                anchorPos.x +
+                Math.cos(angle) *
+                MAX_DRAG_DIST,
+
+            y:
+                anchorPos.y +
+                Math.sin(angle) *
+                MAX_DRAG_DIST
+
+        };
+
+    }
+
+    else {
+
+        ballPos = {
+            x,
+            y
+        };
+
+    }
+
+}
+
+
+
+/* =========================================================
+   SHOOT
+========================================================= */
+
+function handleEnd() {
+
+    if (!isDragging) {
+        return;
+    }
+
+
+    isDragging = false;
+
+
+    const dx =
+        anchorPos.x -
+        ballPos.x;
+
+
+    const dy =
+        anchorPos.y -
+        ballPos.y;
+
+
+    const distance =
+        Math.sqrt(
+            dx * dx +
+            dy * dy
+        );
+
+
+    if (
+        distance > 25
+    ) {
+
+        isFlying = true;
+
+        flightStartTime =
+            performance.now();
+
+
+        const power =
+            Math.min(
+                distance /
+                MAX_DRAG_DIST,
+                1
+            );
+
+
+        const launchSpeed =
+            12 +
+            power * 38;
+
+
+        const angle =
+            Math.atan2(
+                dy,
+                dx
+            );
+
+
+        ballVel = {
+
+            x:
+                Math.cos(angle) *
+                launchSpeed,
+
+            y:
+                Math.sin(angle) *
+                launchSpeed
+
+        };
+
+    }
+
+    else {
+
+        ballPos = {
+            ...anchorPos
+        };
+
+    }
+
+}
+
+
+
+/* =========================================================
+   HEXAGONAL NEIGHBORS
+========================================================= */
+
+function getNeighbors(
+    bubble
+) {
+
+    const row =
+        bubble.row;
+
+    const col =
+        bubble.col;
+
+
+    const positions = [];
+
+
+    if (
+        row % 2 === 0
+    ) {
+
+        positions.push(
+
+            [row, col - 1],
+            [row, col + 1],
+
+            [row - 1, col - 1],
+            [row - 1, col],
+
+            [row + 1, col - 1],
+            [row + 1, col]
+
+        );
+
+    }
+
+    else {
+
+        positions.push(
+
+            [row, col - 1],
+            [row, col + 1],
+
+            [row - 1, col],
+            [row - 1, col + 1],
+
+            [row + 1, col],
+            [row + 1, col + 1]
+
+        );
+
+    }
+
+
+    const neighbors = [];
+
+
+    for (
+        const position
+        of positions
+    ) {
+
+        const found =
+            bubbles.find(
+                b =>
+                    b.active &&
+                    b.row ===
+                        position[0] &&
+                    b.col ===
+                        position[1]
+            );
+
+
+        if (found) {
+
+            neighbors.push(
+                found
+            );
+
+        }
+
+    }
+
+
+    return neighbors;
+
+}
+
+
+
+/* =========================================================
+   FIND MATCHES
+========================================================= */
+
+function findMatches(
+    startBubble
+) {
+
+    const queue =
+        [startBubble];
+
+
+    const visited =
+        new Set();
+
+
+    const matches = [];
+
+
+    while (
+        queue.length > 0
+    ) {
+
+        const current =
+            queue.shift();
+
+
+        if (
+            visited.has(
+                current.id
+            )
+        ) {
+
+            continue;
+
+        }
+
+
+        visited.add(
+            current.id
+        );
+
+
+        if (
+            current.color !==
+            selectedColor
+        ) {
+
+            continue;
+
+        }
+
+
+        matches.push(
+            current
+        );
+
+
+        const neighbors =
+            getNeighbors(
+                current
+            );
+
+
+        neighbors.forEach(
+            neighbor => {
+
+                if (
+                    !visited.has(
+                        neighbor.id
+                    ) &&
+                    neighbor.color ===
+                        selectedColor
+                ) {
+
+                    queue.push(
+                        neighbor
+                    );
+
+                }
+
+            }
+        );
+
+    }
+
+
+    return matches;
+
+}
+
+
+
+/* =========================================================
+   EXPLOSION
+========================================================= */
+
+function createExplosion(
+    bubble
+) {
+
+    for (
+        let i = 0;
+        i < 16;
+        i++
+    ) {
+
+        particles.push({
+
+            x:
+                bubble.x,
+
+            y:
+                bubble.y,
+
+            vx:
+                (
+                    Math.random() -
+                    0.5
+                ) * 10,
+
+            vy:
+                (
+                    Math.random() -
+                    0.5
+                ) * 10,
+
+            life: 1,
+
+            color:
+                COLOR_CONFIG[
+                    bubble.color
+                ].hex
+
+        });
+
+    }
+
+}
+
+
+
+/* =========================================================
+   PLACE SHOT
+========================================================= */
+
+function placeShot() {
+
+    let bestDistance =
+        Infinity;
+
+
+    let bestRow = 0;
+
+    let bestCol = 0;
+
+    let bestX = 0;
+
+    let bestY = 0;
+
+
+    for (
+        let row = 0;
+        row < GRID_ROWS + 5;
+        row++
+    ) {
+
+        const cols =
+            row % 2 !== 0
+                ? GRID_COLS - 1
+                : GRID_COLS;
+
+
+        for (
+            let col = 0;
+            col < cols;
+            col++
+        ) {
+
+            const position =
+                getBubblePos(
+                    row,
+                    col
+                );
+
+
+            const occupied =
+                bubbles.some(
+                    b =>
+                        b.active &&
+                        b.row === row &&
+                        b.col === col
+                );
+
+
+            if (occupied) {
+                continue;
+            }
+
+
+            const dx =
+                ballPos.x -
+                position.x;
+
+
+            const dy =
+                ballPos.y -
+                position.y;
+
+
+            const distance =
+                Math.sqrt(
+                    dx * dx +
+                    dy * dy
+                );
+
+
+            if (
+                distance <
+                bestDistance
+            ) {
+
+                bestDistance =
+                    distance;
+
+                bestRow =
+                    row;
+
+                bestCol =
+                    col;
+
+                bestX =
+                    position.x;
+
+                bestY =
+                    position.y;
+
+            }
+
+        }
+
+    }
+
+
+    const newBubble = {
+
+        id:
+            `shot-${Date.now()}-${Math.random()}`,
+
+        row:
+            bestRow,
+
+        col:
+            bestCol,
+
+        x:
+            bestX,
+
+        y:
+            bestY,
+
+        color:
+            selectedColor,
+
+        active:
+            true
+
+    };
+
+
+    bubbles.push(
+        newBubble
+    );
+
+
+    /* MATCHING */
+
+    const matches =
+        findMatches(
+            newBubble
+        );
+
+
+    if (
+        matches.length >= 3
+    ) {
+
+        matches.forEach(
+            bubble => {
+
+                bubble.active =
+                    false;
+
+
+                score +=
+                    COLOR_CONFIG[
+                        bubble.color
+                    ].points;
+
+
+                createExplosion(
+                    bubble
+                );
+
+            }
+        );
+
+
+        scoreDisplay.textContent =
+            score.toLocaleString();
+
+    }
+
+
+    /*
+       IMPORTANT:
+       Keep the user's selected
+       color after shooting.
+    */
+
+    updateAvailableColors();
+
+
+    ballPos = {
+        ...anchorPos
+    };
+
+}
+
+
+
+/* =========================================================
+   MEDIAPIPE
+========================================================= */
+
+let hands = null;
+
+let camera = null;
+
+
+
+async function initializeHandTracking() {
+
+    try {
+
+        if (
+            typeof Hands ===
+            "undefined"
+        ) {
+
+            throw new Error(
+                "MediaPipe Hands did not load."
+            );
+
+        }
+
+
+        hands =
+            new Hands({
+
+                locateFile:
+                    file =>
+                        `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+
+            });
+
+
+        hands.setOptions({
+
+            maxNumHands: 1,
+
+            modelComplexity: 1,
+
+            minDetectionConfidence:
+                0.7,
+
+            minTrackingConfidence:
+                0.7
+
+        });
+
+
+        hands.onResults(
+            handleHandResults
+        );
+
+
+        camera =
+            new Camera(
+                videoElement,
+                {
+
+                    onFrame:
+                        async () => {
+
+                            try {
+
+                                await hands.send({
+                                    image:
+                                        videoElement
+                                });
+
+                            }
+
+                            catch (error) {
+
+                                console.error(
+                                    "MediaPipe frame error:",
+                                    error
+                                );
+
+                            }
+
+                        },
+
+                    width: 640,
+
+                    height: 480
+
+                }
+            );
+
+
+        await startCamera();
+
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Hand tracking failed:",
+            error
+        );
+
+
+        cameraStatus.textContent =
+            "Camera unavailable — Touch/Mouse enabled";
+
+
+        cameraStatus.classList.add(
+            "error"
+        );
+
+    }
+
+}
+
+
+
+/* =========================================================
+   CAMERA
+========================================================= */
+
+async function startCamera() {
+
+    /* Temporarily suppress alert() during camera init
+       because MediaPipe camera_utils calls alert() on failure */
+    const originalAlert = window.alert;
+    window.alert = function(msg) {
+        console.warn("Suppressed alert:", msg);
+    };
+
+    try {
+
+        if (
+            !navigator.mediaDevices ||
+            !navigator.mediaDevices.getUserMedia
+        ) {
+
+            throw new Error(
+                "Camera API unavailable. Use http:// not file://"
+            );
+
+        }
+
+
+        const stream =
+            await navigator.mediaDevices
+                .getUserMedia({
+
+                    video: {
+
+                        width: {
+                            ideal: 640
+                        },
+
+                        height: {
+                            ideal: 480
+                        },
+
+                        facingMode:
+                            "user"
+
+                    },
+
+                    audio: false
+
+                });
+
+
+        videoElement.srcObject =
+            stream;
+
+
+        await videoElement.play();
+
+
+        await camera.start();
+
+
+        cameraStatus.textContent =
+            "● Hand Tracking Active";
+
+
+        cameraStatus.classList.add(
+            "active"
+        );
+
+
+        console.log(
+            "Camera started."
+        );
+
+    }
+
+    catch (error) {
+
+        console.warn(
+            "Camera error:",
+            error
+        );
+
+
+        cameraStatus.textContent =
+            "Camera unavailable — Touch/Mouse enabled";
+
+
+        cameraStatus.classList.add(
+            "error"
+        );
+
+    }
+
+    finally {
+        /* Restore alert */
+        window.alert = originalAlert;
+    }
+
+}
+
+
+
+/* =========================================================
+   HAND RESULTS
+========================================================= */
+
+function handleHandResults(
+    results
+) {
+
+    lastHandResults =
+        results;
+
+
+    if (
+        results.multiHandLandmarks &&
+        results.multiHandLandmarks.length
+            > 0
+    ) {
+
+        handActive = true;
+
+
+        const landmarks =
+            results
+                .multiHandLandmarks[0];
+
+
+        const thumb =
+            landmarks[4];
+
+
+        const index =
+            landmarks[8];
+
+
+        /* Raw hand position */
+        const rawX =
+            (
+                1 -
+                (
+                    thumb.x +
+                    index.x
+                ) / 2
+            ) *
+            canvas.width;
+
+        const rawY =
+            (
+                (
+                    thumb.y +
+                    index.y
+                ) / 2
+            ) *
+            canvas.height;
+
+
+        /* Apply EMA smoothing */
+        if (!handInitialized) {
+            smoothHandPos.x = rawX;
+            smoothHandPos.y = rawY;
+            handInitialized = true;
+        } else {
+            smoothHandPos.x +=
+                (rawX - smoothHandPos.x) *
+                HAND_SMOOTH_FACTOR;
+            smoothHandPos.y +=
+                (rawY - smoothHandPos.y) *
+                HAND_SMOOTH_FACTOR;
+        }
+
+        handPos = {
+            x: smoothHandPos.x,
+            y: smoothHandPos.y
+        };
+
+
+        /* ---- HOVER COLOR SELECTION (no pinch needed) ---- */
+        let handInPickerZone = false;
+
+        if (!isDragging) {
+            let foundColor = null;
+            const pickerRect = colorPicker.getBoundingClientRect();
+
+            /* Check if hand is anywhere near the picker bar */
+            if (
+                handPos.x >= pickerRect.left - 30 &&
+                handPos.x <= pickerRect.right + 30 &&
+                handPos.y >= pickerRect.top - 30 &&
+                handPos.y <= pickerRect.bottom + 30
+            ) {
+                handInPickerZone = true;
+            }
+
+            const buttons = colorPicker.querySelectorAll(".bubble-btn");
+            buttons.forEach(function(btn, idx) {
+                const rect = btn.getBoundingClientRect();
+                if (
+                    handPos.x >= rect.left - 18 &&
+                    handPos.x <= rect.right + 18 &&
+                    handPos.y >= rect.top - 18 &&
+                    handPos.y <= rect.bottom + 18
+                ) {
+                    if (idx < COLOR_KEYS.length) {
+                        foundColor = COLOR_KEYS[idx];
+                    }
+                }
+            });
+
+            if (foundColor && foundColor !== selectedColor) {
+                if (foundColor === hoverColorName) {
+                    /* Same button — check dwell time */
+                    if (performance.now() - hoverStartTime >= HOVER_DWELL_MS) {
+                        selectedColor = foundColor;
+                        renderPicker();
+                    }
+                } else {
+                    /* New button — start timer */
+                    hoverColorName = foundColor;
+                    hoverStartTime = performance.now();
+                }
+            } else if (!foundColor) {
+                hoverColorName = null;
+            }
+        }
+
+
+        const dx =
+            thumb.x -
+            index.x;
+
+
+        const dy =
+            thumb.y -
+            index.y;
+
+
+        const distance =
+            Math.sqrt(
+                dx * dx +
+                dy * dy
+            );
+
+
+        /* Hysteresis: harder to engage, easier to hold */
+        if (isPinching) {
+            isPinching =
+                distance < PINCH_RELEASE_DIST;
+        } else {
+            isPinching =
+                distance < PINCH_ENGAGE_DIST;
+        }
+
+
+        /* PINCH START — only if hand is NOT over the color picker */
+
+        if (
+            isPinching &&
+            !lastPinchState &&
+            !handInPickerZone
+        ) {
+
+            startDrag(
+                handPos.x,
+                handPos.y,
+                true
+            );
+
+        }
+
+
+        /* DRAG — use extra smoothing, but stop if hand enters picker zone */
+
+        if (isDragging && isHandDrag) {
+
+            if (handInPickerZone) {
+                /* Hand moved to picker while dragging — cancel drag */
+                isHandDrag = false;
+                isDragging = false;
+                ballPos = { ...anchorPos };
+            } else {
+                const dragSmooth = 0.25;
+                const smoothX =
+                    ballPos.x +
+                    (handPos.x - ballPos.x) *
+                    dragSmooth;
+                const smoothY =
+                    ballPos.y +
+                    (handPos.y - ballPos.y) *
+                    dragSmooth;
+
+                updateDrag(
+                    smoothX,
+                    smoothY
+                );
+            }
+
+        }
+
+
+        /* RELEASE */
+
+        if (
+            !isPinching &&
+            lastPinchState
+        ) {
+
+            if (isHandDrag) {
+                isHandDrag = false;
+            }
+            handleEnd();
+
+        }
+
+
+        lastPinchState =
+            isPinching;
+
+    }
+
+    else {
+
+        handActive = false;
+
+
+        if (isDragging && isHandDrag) {
+            isHandDrag = false;
+            handleEnd();
+        }
+
+
+        lastPinchState =
+            false;
+
+    }
+
+}
+
+
+
+/* =========================================================
+   MOUSE CONTROLS
+========================================================= */
+
+canvas.addEventListener(
+    "mousedown",
+    event => {
+
+        pointerActive = true;
+
+
+        startDrag(
+            event.clientX,
+            event.clientY
+        );
+
+    }
+);
+
+
+canvas.addEventListener(
+    "mousemove",
+    event => {
+
+        if (
+            !pointerActive
+        ) {
+
+            return;
+
+        }
+
+
+        updateDrag(
+            event.clientX,
+            event.clientY
+        );
+
+    }
+);
+
+
+window.addEventListener(
+    "mouseup",
+    () => {
+
+        if (
+            pointerActive
+        ) {
+
+            pointerActive =
+                false;
+
+
+            handleEnd();
+
+        }
+
+    }
+);
+
+
+
+/* =========================================================
+   TOUCH CONTROLS
+========================================================= */
+
+canvas.addEventListener(
+    "touchstart",
+    event => {
+
+        event.preventDefault();
+
+
+        const touch =
+            event.touches[0];
+
+
+        pointerActive =
+            true;
+
+
+        startDrag(
+            touch.clientX,
+            touch.clientY
+        );
+
+    },
+    {
+        passive: false
+    }
+);
+
+
+canvas.addEventListener(
+    "touchmove",
+    event => {
+
+        event.preventDefault();
+
+
+        if (
+            !pointerActive
+        ) {
+
+            return;
+
+        }
+
+
+        const touch =
+            event.touches[0];
+
+
+        updateDrag(
+            touch.clientX,
+            touch.clientY
+        );
+
+    },
+    {
+        passive: false
+    }
+);
+
+
+canvas.addEventListener(
+    "touchend",
+    event => {
+
+        event.preventDefault();
+
+
+        pointerActive =
+            false;
+
+
+        handleEnd();
+
+    },
+    {
+        passive: false
+    }
+);
+
+
+
+/* =========================================================
+   DRAW HANDS
+========================================================= */
+
+function drawHands() {
+
+    if (
+        !lastHandResults ||
+        !lastHandResults.multiHandLandmarks
+    ) {
+
+        return;
+
+    }
+
+
+    for (
+        const landmarks
+        of lastHandResults.multiHandLandmarks
+    ) {
+
+        const canvasLandmarks =
+            landmarks.map(
+                landmark => ({
+
+                    x:
+                        (
+                            1 -
+                            landmark.x
+                        ) *
+                        canvas.width,
+
+                    y:
+                        landmark.y *
+                        canvas.height
+
+                })
+            );
+
+
+        ctx.save();
+
+
+        ctx.shadowBlur =
+            15;
+
+
+        ctx.shadowColor =
+            isPinching
+                ? "#00ffd4"
+                : "#ffffff44";
+
+
+        if (
+            typeof drawConnectors ===
+            "function"
+        ) {
+
+            drawConnectors(
+
+                ctx,
+
+                canvasLandmarks,
+
+                HAND_CONNECTIONS,
+
+                {
+
+                    color:
+                        isPinching
+                            ? "#00ffd4"
+                            : "rgba(255,255,255,0.4)",
+
+                    lineWidth:
+                        5
+
+                }
+
+            );
+
+        }
+
+
+        [
+            4,
+            8,
+            12,
+            16,
+            20
+        ].forEach(
+            tipIndex => {
+
+                const tip =
+                    canvasLandmarks[
+                        tipIndex
+                    ];
+
+
+                ctx.beginPath();
+
+
+                ctx.arc(
+                    tip.x,
+                    tip.y,
+                    9,
+                    0,
+                    Math.PI * 2
+                );
+
+
+                ctx.fillStyle =
+                    tipIndex === 4 ||
+                    tipIndex === 8
+                        ? "#00ffd4"
+                        : "rgba(255,255,255,0.4)";
+
+
+                ctx.fill();
+
+
+                ctx.strokeStyle =
+                    "#fff";
+
+
+                ctx.lineWidth =
+                    2;
+
+
+                ctx.stroke();
+
+            }
+        );
+
+
+        ctx.restore();
+
+    }
+
+}
+
+
+
+/* =========================================================
+   GAME LOOP
+========================================================= */
+
+function loop() {
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+
+    /* HAND */
+
+    drawHands();
+
+
+    /* =====================================================
+       FLYING
+    ===================================================== */
+
+    if (isFlying) {
+
+        if (
+            performance.now() -
+            flightStartTime >
+            5000
+        ) {
+
+            isFlying = false;
+
+            ballPos = {
+                ...anchorPos
+            };
+
+        }
+
+        else {
+
+            const steps = 10;
+
+            let collision =
+                false;
+
+
+            for (
+                let i = 0;
+                i < steps;
+                i++
+            ) {
+
+                ballPos.x +=
+                    ballVel.x /
+                    steps;
+
+
+                ballPos.y +=
+                    ballVel.y /
+                    steps;
+
+
+                /* WALL */
+
+                if (
+                    ballPos.x <
+                    BUBBLE_RADIUS
+                ) {
+
+                    ballVel.x *=
+                        -1;
+
+                    ballPos.x =
+                        BUBBLE_RADIUS;
+
+                }
+
+
+                if (
+                    ballPos.x >
+                    canvas.width -
+                    BUBBLE_RADIUS
+                ) {
+
+                    ballVel.x *=
+                        -1;
+
+                    ballPos.x =
+                        canvas.width -
+                        BUBBLE_RADIUS;
+
+                }
+
+
+                /* TOP */
+
+                if (
+                    ballPos.y <
+                    BUBBLE_RADIUS
+                ) {
+
+                    collision =
+                        true;
+
+                    break;
+
+                }
+
+
+                /* BUBBLES */
+
+                for (
+                    const bubble
+                    of bubbles
+                ) {
+
+                    if (
+                        !bubble.active
+                    ) {
+
+                        continue;
+
+                    }
+
+
+                    const dx =
+                        ballPos.x -
+                        bubble.x;
+
+
+                    const dy =
+                        ballPos.y -
+                        bubble.y;
+
+
+                    const distance =
+                        Math.sqrt(
+                            dx * dx +
+                            dy * dy
+                        );
+
+
+                    if (
+                        distance <
+                        BUBBLE_RADIUS *
+                        1.65
+                    ) {
+
+                        collision =
+                            true;
+
+                        break;
+
+                    }
+
+                }
+
+
+                if (
+                    collision
+                ) {
+
+                    break;
+
+                }
+
+            }
+
+
+            ballVel.x *=
+                FRICTION;
+
+
+            ballVel.y *=
+                FRICTION;
+
+
+            if (
+                collision
+            ) {
+
+                isFlying =
+                    false;
+
+
+                placeShot();
+
+            }
+
+        }
+
+    }
+
+
+    /* =====================================================
+       RETURN BALL
+    ===================================================== */
+
+    else if (
+        !isDragging
+    ) {
+
+        ballPos.x +=
+            (
+                anchorPos.x -
+                ballPos.x
+            ) *
+            0.15;
+
+
+        ballPos.y +=
+            (
+                anchorPos.y -
+                ballPos.y
+            ) *
+            0.15;
+
+    }
+
+
+    /* =====================================================
+       DRAW GRID
+    ===================================================== */
+
+    bubbles.forEach(
+        bubble => {
+
+            if (
+                bubble.active
+            ) {
+
+                drawBubble(
+
+                    bubble.x,
+
+                    bubble.y,
+
+                    BUBBLE_RADIUS - 1,
+
+                    bubble.color
+
+                );
+
+            }
+
+        }
+    );
+
+
+    /* =====================================================
+       HAND CURSOR
+    ===================================================== */
+
+    if (
+        handActive
+    ) {
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+
+            handPos.x,
+
+            handPos.y,
+
+            isPinching
+                ? 25
+                : 45,
+
+            0,
+
+            Math.PI * 2
+
+        );
+
+
+        ctx.strokeStyle =
+            isPinching
+                ? "#00ffd4"
+                : "#fff";
+
+
+        ctx.lineWidth =
+            3;
+
+
+        ctx.setLineDash([
+            5,
+            5
+        ]);
+
+
+        ctx.stroke();
+
+
+        ctx.setLineDash([]);
+
+    }
+
+
+    /* =====================================================
+       AIM GUIDE
+    ===================================================== */
+
+    if (
+        isDragging
+    ) {
+
+        ctx.beginPath();
+
+
+        ctx.setLineDash([
+            8,
+            12
+        ]);
+
+
+        ctx.moveTo(
+            anchorPos.x,
+            anchorPos.y
+        );
+
+
+        const dx =
+            anchorPos.x -
+            ballPos.x;
+
+
+        const dy =
+            anchorPos.y -
+            ballPos.y;
+
+
+        ctx.lineTo(
+
+            anchorPos.x +
+            dx * 5,
+
+            anchorPos.y +
+            dy * 5
+
+        );
+
+
+        ctx.strokeStyle =
+            "rgba(255,255,255,0.25)";
+
+
+        ctx.lineWidth =
+            2;
+
+
+        ctx.stroke();
+
+
+        ctx.setLineDash([]);
+
+    }
+
+
+    /* =====================================================
+       SLINGSHOT
+    ===================================================== */
+
+    const bandTarget =
+        isFlying
+            ? anchorPos
+            : ballPos;
+
+
+    const bandColor =
+        isDragging
+            ? "#00ffd4"
+            : "rgba(255,255,255,0.35)";
+
+
+    ctx.lineCap =
+        "round";
+
+
+    /* LEFT BAND */
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+
+        anchorPos.x - 30,
+
+        anchorPos.y
+
+    );
+
+
+    ctx.lineTo(
+
+        bandTarget.x,
+
+        bandTarget.y
+
+    );
+
+
+    ctx.lineWidth =
+        6;
+
+
+    ctx.strokeStyle =
+        bandColor;
+
+
+    ctx.stroke();
+
+
+    /* BALL */
+
+    drawBubble(
+
+        ballPos.x,
+
+        ballPos.y,
+
+        BUBBLE_RADIUS,
+
+        selectedColor
+
+    );
+
+
+    /* RIGHT BAND */
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+
+        bandTarget.x,
+
+        bandTarget.y
+
+    );
+
+
+    ctx.lineTo(
+
+        anchorPos.x + 30,
+
+        anchorPos.y
+
+    );
+
+
+    ctx.stroke();
+
+
+    /* SLINGSHOT BODY */
+
+    ctx.beginPath();
+
+
+    ctx.moveTo(
+
+        anchorPos.x,
+
+        canvas.height
+
+    );
+
+
+    ctx.lineTo(
+
+        anchorPos.x,
+
+        anchorPos.y + 40
+
+    );
+
+
+    ctx.lineTo(
+
+        anchorPos.x - 35,
+
+        anchorPos.y
+
+    );
+
+
+    ctx.moveTo(
+
+        anchorPos.x,
+
+        anchorPos.y + 40
+
+    );
+
+
+    ctx.lineTo(
+
+        anchorPos.x + 35,
+
+        anchorPos.y
+
+    );
+
+
+    ctx.lineWidth =
+        12;
+
+
+    ctx.lineCap =
+        "round";
+
+
+    ctx.strokeStyle =
+        "#ffffff22";
+
+
+    ctx.stroke();
+
+
+    ctx.lineWidth =
+        2;
+
+
+    ctx.strokeStyle =
+        "#ffffff44";
+
+
+    ctx.stroke();
+
+
+    /* =====================================================
+       PARTICLES
+    ===================================================== */
+
+    for (
+        let i = particles.length - 1;
+        i >= 0;
+        i--
+    ) {
+
+        const particle =
+            particles[i];
+
+
+        particle.x +=
+            particle.vx;
+
+
+        particle.y +=
+            particle.vy;
+
+
+        particle.vy +=
+            0.15;
+
+
+        particle.life -=
+            0.04;
+
+
+        if (
+            particle.life <= 0
+        ) {
+
+            particles.splice(
+                i,
+                1
+            );
+
+            continue;
+
+        }
+
+
+        ctx.globalAlpha =
+            particle.life;
+
+
+        ctx.beginPath();
+
+
+        ctx.arc(
+
+            particle.x,
+
+            particle.y,
+
+            4,
+
+            0,
+
+            Math.PI * 2
+
+        );
+
+
+        ctx.fillStyle =
+            particle.color;
+
+
+        ctx.fill();
+
+
+        ctx.globalAlpha =
+            1;
+
+    }
+
+
+    requestAnimationFrame(
+        loop
+    );
+
+}
+
+
+
+/* =========================================================
+   START
+========================================================= */
+
+renderPicker();
+
+loop();
+
+initializeHandTracking();
+
+
+</script>
+
+</body>
+
+</html>
